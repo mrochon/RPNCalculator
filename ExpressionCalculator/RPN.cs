@@ -24,6 +24,8 @@ namespace ExpressionCalculator
         public void Parse(string expression)
         {
             _stack.Clear();
+
+            /* Tokenize variable names */
             var pattern = "{[a-zA-Z0-9_]+}";
             var compiledexpression = new StringBuilder(expression);
             var rg = new Regex(pattern);
@@ -36,31 +38,51 @@ namespace ExpressionCalculator
                 compiledexpression.Replace(((Match)name).Value, $"#{ix++}");
             }
 
+            // Tokenize literals
+            pattern = "\\.[a-zA-Z0-9_-]*\\.";
+            rg = new Regex(pattern);
+            ix = 0;
+            var consts = new List<string>();
+            foreach (var name in rg.Matches(expression))
+            {
+                var constValue = ((Match)name).Value;
+                consts.Add(constValue.Substring(1, constValue.Length - 2));
+                compiledexpression.Replace(((Match)name).Value, $".{ix++}");
+            }
+
+            // Tokenize operators
             var opNames = Enum.GetNames<Operators>();
             for (int i = 0; i < opNames.Length; i++)
             {
                 compiledexpression = compiledexpression.Replace($"{opNames[i]}", $"*{i}");
             }
 
+            // Convert to stack
             var expr = compiledexpression.ToString();
             ix = 0;
             while(ix < expr.Length)
             {
-                if (expr[ix] == '#')
+                switch (expr[ix])
                 {
-                    var id = int.Parse(expr.Substring(ix + 1, 1));
-                    _stack.Push(new Element { Variable = vars[id] });
-                    ++ix;
-                }
-                else if (expr[ix] == '*')
-                {
-                    var id = int.Parse(expr.Substring(ix + 1, 1));
-                    _stack.Push(new Element { Operator = Enum.GetValues<Operators>()[id] });
-                    ++ix;
-                }
-                else if (expr[ix] != ' ')
-                {
-                    throw new Exception("Invalid characters in expression");
+                    case '#':
+                        var id = int.Parse(expr.Substring(ix + 1, 1));
+                        _stack.Push(new Element { Variable = vars[id] });
+                        ++ix;
+                        break;
+                    case '.':
+                        id = int.Parse(expr.Substring(ix + 1, 1));
+                        _stack.Push(new Element { Literal = consts[id] });
+                        ++ix;
+                        break;
+                    case '*':
+                        id = int.Parse(expr.Substring(ix + 1, 1));
+                        _stack.Push(new Element { Operator = Enum.GetValues<Operators>()[id] });
+                        ++ix;
+                        break;
+                    case ' ':
+                        break;
+                    default:
+                            throw new Exception("Invalid characters in expression");
                 }
                 ++ix;
             }
@@ -70,33 +92,39 @@ namespace ExpressionCalculator
         {
             var el = _stack.Pop();
 
-            if (el.ElType == Element.ElTypes.Operator)
+            switch (el.ElType)
             {
-                switch (el.Operator)
-                {
-                    case Operators.not:
-                        return !(bool)Execute();
-                    case Operators.eq:
-                        return Compare() == 0;
-                    case Operators.ne:
-                        return Compare() != 0;
-                    case Operators.lt:
-                        return Compare() < 0;
-                    case Operators.gt:
-                        return Compare() > 0;
-                    case Operators.and:
-                        return (bool)Execute() && (bool)Execute();
-                    case Operators.or:
-                        return (bool)Execute() || (bool)Execute();
-                    default:
-                        throw new Exception("Invalid element");
-                }
+                case Element.ElTypes.Operator:
+                    {
+                        switch (el.Operator)
+                        {
+                            case Operators.not:
+                                return !(bool)Execute();
+                            case Operators.eq:
+                                return Compare() == 0;
+                            case Operators.ne:
+                                return Compare() != 0;
+                            case Operators.lt:
+                                return Compare() < 0;
+                            case Operators.gt:
+                                return Compare() > 0;
+                            case Operators.and:
+                                return (bool)Execute() && (bool)Execute();
+                            case Operators.or:
+                                return (bool)Execute() || (bool)Execute();
+                            default:
+                                throw new Exception("Invalid element");
+                        }
+                    }
+                case Element.ElTypes.Variable:
+                    return Variables.FirstOrDefault(e => e.Key == el.Variable).Value?? String.Empty;
+                case Element.ElTypes.Literal:
+                    return el.Literal;
+                case Element.ElTypes.Value:
+                    return el.Value;
+                default:
+                    throw new Exception("Invalid stack");
             }
-            else if (el.ElType == Element.ElTypes.Variable)
-                return Variables[el.Variable] ?? String.Empty;
-            else if (el.ElType == Element.ElTypes.Value)
-                return el.Value;
-            throw new Exception("Invalid stack");
         }
         private int Compare()
         {
@@ -115,7 +143,7 @@ namespace ExpressionCalculator
         }
         public class Element
         {
-            public enum ElTypes { Value, Operator, Variable }
+            public enum ElTypes { Value, Operator, Variable, Literal }
             private ElTypes _elType;
             public ElTypes ElType { get => _elType; }
             private bool _value;
@@ -136,6 +164,16 @@ namespace ExpressionCalculator
                 {
                     _variable = value;
                     _elType = ElTypes.Variable;
+                }
+            }
+            private string _literal;
+            public string Literal
+            {
+                get => _literal;
+                set
+                {
+                    _literal = value;
+                    _elType = ElTypes.Literal;
                 }
             }
             private Operators _operator;

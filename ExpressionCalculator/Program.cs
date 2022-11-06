@@ -4,8 +4,12 @@ using ExpressionCalculator;
 Console.WriteLine("Simple expression calculator");
 
 var rpn = new RPN();
-rpn.Variables.Add("v1", "ABC");
-rpn.Variables.Add("v2", null);
-rpn.Variables.Add("var_3", "ABC");
-rpn.Parse("{v1}{var_3}eq {v1}{v2}eq or not");
+rpn.Variables.Add("MFAChoice", "email");
+//rpn.Variables.Add("v2", null);
+//rpn.Variables.Add("var_3", "ABC");
+//rpn.Parse("{v1}.ABC.eq {v1}{v2}eq or not");
+//rpn.Parse("{v1}.ABC.eq {v1}{v2}eq or not");
+//rpn.Parse("{v1}.ABCD.gt");
+rpn.Parse("{MFAChoice}.email.eq {strongAuthenticationPhoneNumber}..ne or");
+//rpn.Parse("{strongAuthenticationPhoneNumber}.. eq");
 Console.WriteLine($"Result: {rpn.Execute()}");
